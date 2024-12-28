@@ -1,0 +1,111 @@
+import SwiftUI
+
+struct ContentView: View {
+    @State private var blocks: [Block] = Block.generateBlocks()
+    @State private var startTime = Date()
+    @State private var reactionTimes: [TimeInterval] = []
+    @State private var isGameRunning = true
+    @State private var colorChangeTime = Date()
+    
+    let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button("Stop") {
+                    isGameRunning = false
+                }
+                .padding()
+            }
+            
+            Text("Rounds: \(reactionTimes.count) ")
+                .font(.largeTitle)
+                .padding()
+            
+            Spacer()
+            
+            ZStack {
+                ForEach(blocks) { block in
+                    Rectangle()
+                        .fill(block.color)
+                        .frame(width: 50, height: 50)
+                        .position(block.position)
+                        .onTapGesture {
+                            if block.colorChanged {
+                                let reactionTime = Date().timeIntervalSince(colorChangeTime)
+                                reactionTimes.append(reactionTime)
+                                blocks = Block.generateBlocks()
+                                colorChangeTime = Date()
+                            }
+                        }
+                }
+            }
+            .padding()
+            
+            Spacer()
+            
+            if !isGameRunning {
+                Text("Average Reaction Time: \(averageReactionTime(), specifier: "%.2f") s")
+                    .font(.title)
+                    .padding()
+            }
+        }
+        .onReceive(timer) { _ in
+            if isGameRunning {
+                blocks = Block.changeRandomBlockColor(blocks: blocks)
+                colorChangeTime = Date()
+            }
+        }
+    }
+    
+    private func averageReactionTime() -> Double {
+        guard !reactionTimes.isEmpty else { return 0 }
+        return reactionTimes.reduce(0, +) / Double(reactionTimes.count)
+    }
+}
+
+struct Block: Identifiable {
+    let id = UUID()
+    var color: Color
+    var position: CGPoint
+    var colorChanged: Bool = false
+    
+    static func generateBlocks() -> [Block] {
+        var blocks: [Block] = []
+        for _ in 0..<30 {
+            let block = Block(color: .random, position: .random)
+            blocks.append(block)
+        }
+        return blocks
+    }
+    
+    static func changeRandomBlockColor(blocks: [Block]) -> [Block] {
+        var newBlocks = blocks
+        if let index = newBlocks.indices.randomElement() {
+            newBlocks[index].color = .random
+            newBlocks[index].colorChanged = true
+        }
+        return newBlocks
+    }
+}
+
+extension Color {
+    static var random: Color {
+        Color(red: .random(in: 0...1),
+              green: .random(in: 0...1),
+              blue: .random(in: 0...1))
+    }
+}
+
+extension CGPoint {
+    static var random: CGPoint {
+        CGPoint(x: .random(in: 350...650), y: .random(in: 0...750)) // Adjust range for x-axis to right side of the screen
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
